@@ -31,7 +31,7 @@
 *.out
 *.app
 
-bin/
+bin/imapcl
 
 # notes and auth
 notes.md

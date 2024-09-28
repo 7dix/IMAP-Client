@@ -31,5 +31,8 @@
 *.out
 *.app
 
-# Private notes
+bin/
+
+# notes and auth
 notes.md
+auth

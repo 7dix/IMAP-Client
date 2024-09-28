@@ -1,7 +1,7 @@
 // ArgumentsParser.cpp
 #include "ArgumentsParser.h"
 #include <iostream>
-#include <getopt.h>
+#include <unistd.h>
 #include <cstdlib>
 
 
@@ -15,10 +15,11 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
     options.headersOnly = false; // Default full messages
     options.mailbox = "INBOX"; // Default mailbox
 
-    int opt = 1;
-    while ((opt = getopt(argc, argv, "p:Tc:C:nha:b:o:")) != -1) 
+    int opt;
+    while ((opt = getopt(argc, argv, "p:Tc:C:nha:b:o:")) != -1)
     {
-        switch (opt) {
+        switch (opt) 
+        {
             case 'p':
                 std::cout << "Option -p with value " << optarg << std::endl; // Debug
                 if (std::atoi(optarg) < 0 || std::atoi(optarg) > 65536) {
@@ -76,19 +77,18 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
         }
     }
 
-    // Get the server argument
-    if (optind < argc) {
-        options.server = argv[optind];
-    } else {
-        std::cerr << "Adresa serveru je povinná." << std::endl;
+    // Check for required options after option parsing
+    if (options.authFile.empty() || options.outputDir.empty()) {
+        std::cerr << "Argumenty -a a -o jsou povinná." << std::endl;
         printUsage();
         exit(EXIT_FAILURE);
     }
 
-    // Check for required options
-    if (options.authFile.empty() || options.outputDir.empty()) {
-        std::cout << options.authFile << " " << options.outputDir << std::endl;
-        std::cerr << "Argumenty -a a -o jsou povinná." << std::endl;
+    // Access the positional argument(s) after options have been parsed
+    if (optind < argc) {
+        options.server = argv[optind];
+    } else {
+        std::cerr << "Adresa serveru je povinná." << std::endl;
         printUsage();
         exit(EXIT_FAILURE);
     }

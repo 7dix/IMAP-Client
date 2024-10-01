@@ -33,6 +33,11 @@
 
 bin/imapcl
 
+mails/
+
 # notes and auth
 notes.md
 auth
+
+# vs code
+.vscode/

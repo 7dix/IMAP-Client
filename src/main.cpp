@@ -4,6 +4,7 @@
 
 #include "ArgumentsParser.h"
 #include "AuthReader.h"
+#include "ImapClient.h"
 
 int main(int argc, char* argv[]) {
     ArgumentsParser argumentsParser;
@@ -11,13 +12,26 @@ int main(int argc, char* argv[]) {
 
     AuthReader authReader(options.authFile);
     AuthData authData = authReader.read();
-    std::cout << "Name: '" << authData.username << "' password: '" << authData.password << "'" << std::endl;
 
     if (options.useTLS) {
-        std::cout << "Loading SSL certificates.." << std::endl;
+        std::cout << "Načítám SSL.." << std::endl;
     }
-    // Read authentication file
 
+    ImapClient imapClient(options);
+    if (imapClient.state == ImapClientState::Error){
+        imapClient.disconnect();
+        return 1;
+    }
 
-    std::cout << "Hello, World!" << std::endl;
+    if (imapClient.login(authData) != 0){
+        imapClient.disconnect();
+        return 1;
+    }
+    if (imapClient.selectMailbox() != 0){
+        imapClient.disconnect();
+        return 1;
+    }
+        
+    imapClient.disconnect();
+    return 0;
 }

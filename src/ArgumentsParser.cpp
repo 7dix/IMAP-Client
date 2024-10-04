@@ -8,13 +8,6 @@
 ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
     ProgramOptions options;
 
-    options.port = -1; // Not default port, used for checking changes
-    options.useTLS = false; // Default no TLS
-    options.certDir = "/etc/ssl/certs"; // Default cert dir
-    options.onlyNewMessages = false; // Default all messages
-    options.headersOnly = false; // Default full messages
-    options.mailbox = "INBOX"; // Default mailbox
-
     int opt;
     while ((opt = getopt(argc, argv, "p:Tc:C:nha:b:o:")) != -1)
     {

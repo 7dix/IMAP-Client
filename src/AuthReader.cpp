@@ -12,7 +12,7 @@ AuthData AuthReader::read() {
 
     std::ifstream file(authFile_);
     if (!file.is_open()) {
-        throw std::runtime_error("Failed to open the authentication file");
+        throw std::runtime_error("Nepodařilo se nalézt soubor s přihlašovacími údaji.");
     }
 
     AuthData authData;
@@ -35,7 +35,7 @@ AuthData AuthReader::read() {
                 authData.password = value;
             }
         } else {
-            throw std::runtime_error("Error reading the authentication file");
+            throw std::runtime_error("Nepodařilo se přečíst soubor s přihlašovacími údaji.");
         }
     }
 

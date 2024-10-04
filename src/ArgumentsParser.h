@@ -8,14 +8,14 @@
 
 struct ProgramOptions {
     std::string server;
-    int port;
-    bool useTLS;
+    int port = -1; // Not default port, used for checking changes
+    bool useTLS = false; // Default no TLS
     std::string certFile;
-    std::string certDir;
-    bool onlyNewMessages;
-    bool headersOnly;
+    std::string certDir = "/etc/ssl/certs"; // Default cert dir
+    bool onlyNewMessages = false; // Default all messages
+    bool headersOnly = false; // Default full messages
     std::string authFile;
-    std::string mailbox;
+    std::string mailbox = "INBOX"; // Default mailbox
     std::string outputDir;
 };
 

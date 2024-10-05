@@ -295,7 +295,62 @@ int ImapClient::fetchMessages() {
         std::cerr << "Nepodařilo se najít emaily. Server neodpověděl."<< std::endl;
         return 1;
     }
+
+    std::vector<int> messageIds = getMessageIdsFromResponse(response);
+    std::cout << "Počet emailů: " << messageIds.size() << std::endl;
+
+    for (int id : messageIds) {
+        std::string message = downloadMessage(id);
+        if (message == ""){
+            std::cerr << "Nepodařilo se stáhnout email."<< std::endl;
+            return 1;
+        }
+        std::cout << message << std::endl;
+    }
+
+
     return 0;
 }
 
+std::vector<int> ImapClient::getMessageIdsFromResponse(const std::string &response) {
+    std::vector<int> messageIds;
+    std::istringstream responseStream(response);
+    std::string line;
+    while (std::getline(responseStream, line)) {
+        if (line.find("* SEARCH") != std::string::npos) {
+            std::istringstream lineStream(line);
+            std::string search;
+            int id;
+            lineStream >> search >> search; // Skip "* SEARCH"
+            while (lineStream >> id) {
+                messageIds.push_back(id);
+            }
+        }
+    }
+    return messageIds;
+}
+
+std::string ImapClient::downloadMessage(int id) {
+    std::ostringstream command;
+    if (options_.headersOnly) {
+        command << generateTag() << " FETCH " << id << " BODY[HEADER]";
+    } else {
+        command << generateTag() << " FETCH " << id << " BODY[]";
+    }
+
+    // Send the FETCH command
+    if (sendCommand(command.str()) != 0){
+        std::cerr << "Nepodařilo se odeslat příkaz FETCH." << std::endl;
+        return "";
+    }
+
+    // Receive the response from the server
+    std::string response = receiveResponse();
+    if (response == ""){
+        std::cerr << "Nepodařilo se stáhnout email. Server neodpověděl."<< std::endl;
+        return "";
+    }
+
+    return response;
+}
 

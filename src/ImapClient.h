@@ -46,6 +46,8 @@ private:
     std::string receiveResponse();
     std::string recvData();
     std::string generateTag();
+    std::vector<int> getMessageIdsFromResponse(const std::string &response);
+    std::string downloadMessage(int id);
 };
 
 #endif // IMAPCLIENT_H

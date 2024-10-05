@@ -10,9 +10,9 @@
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
-#include <cstring>
+#include <cstring> 
 #include <unistd.h>
-
+ 
 ImapClient::ImapClient(ProgramOptions &options)
     : options_(options), ssl_ctx_(nullptr), ssl_(nullptr) {
 
@@ -184,7 +184,12 @@ int ImapClient::sendCommand(const std::string& command) {
     // Append CRLF to the command as per IMAP protocol
     std::string full_command = command + "\r\n";
     std::cout << full_command;
-    ssize_t bytes_sent = send(socket_, full_command.c_str(), full_command.size(), 0);
+    ssize_t bytes_sent;
+    if (ssl_){
+        bytes_sent = SSL_write(ssl_, full_command.c_str(), full_command.length());    
+    } else {
+        bytes_sent = send(socket_, full_command.c_str(), full_command.size(), 0);
+    }
     if (bytes_sent < 0) {
         std::cerr << "Failed to send command to the server." << std::endl;
         return 1;
@@ -202,19 +207,12 @@ std::string ImapClient::receiveResponse() {
         std::string recved = recvData();
         response += recved;
 
-        // Check for continuation request
-        if (recved[0] == '+') {
-            // Continue reading until a complete response is received
-            std::cout << "Continuation request received: " << response << std::endl;
-            continue;
-        }
-
         // Check for completion of response
         if (recved.find(currentTag + " OK") != std::string::npos || 
             recved.find(currentTag + " BAD") != std::string::npos || 
             recved.find(currentTag + " NO") != std::string::npos) {
 
-            std::cout << "command completed: " << response << std::endl;
+            std::cout << response << std::endl;
             received = true;
         }
     }
@@ -279,3 +277,25 @@ int ImapClient::selectMailbox() {
     std::cout << "Schránka vybrána!" << std::endl;
     return 0; // Indicate success
 }
+
+int ImapClient::fetchMessages() {
+    // TODO filtering based on parameters
+    std::ostringstream command;
+    command << generateTag() << " SEARCH ALL" << std::endl;
+
+    // Send the SEARCH command
+    if (sendCommand(command.str()) != 0){
+        std::cerr << "Nepodařilo se odeslat příkaz SEARCH." << std::endl;
+        return 1;
+    }
+
+    // Receive the response from the server
+    std::string response = receiveResponse();
+    if (response == ""){
+        std::cerr << "Nepodařilo se najít emaily. Server neodpověděl."<< std::endl;
+        return 1;
+    }
+    return 0;
+}
+
+

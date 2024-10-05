@@ -1,7 +1,7 @@
 # Makefile
 CXX = g++
 CXXFLAGS = -std=c++11 -Wall -Wextra -pthread
-LDFLAGS = -L/usr/local/opt/openssl/lib -lssl -lcrypto
+LDFLAGS = -lssl -lcrypto
 CPPFLAGS = -I/usr/local/opt/openssl/include
 
 SRC_DIR = src

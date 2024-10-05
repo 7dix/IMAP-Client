@@ -31,6 +31,10 @@ int main(int argc, char* argv[]) {
         imapClient.disconnect();
         return 1;
     }
+    if (imapClient.fetchMessages() != 0){
+        imapClient.disconnect();
+        return 1;
+    }
         
     imapClient.disconnect();
     return 0;

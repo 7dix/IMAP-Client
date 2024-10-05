@@ -5,8 +5,10 @@
 
 #include "ArgumentsParser.h"
 #include "AuthReader.h"
-#include <openssl/ssl.h>
-#include <openssl/err.h>
+#include "openssl/ssl.h"
+#include "openssl/err.h"
+#include  "openssl/bio.h"
+
 
 enum class ImapClientState {
     Disconnected,

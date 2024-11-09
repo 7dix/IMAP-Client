@@ -13,29 +13,67 @@ int main(int argc, char* argv[]) {
     AuthReader authReader(options.authFile);
     AuthData authData = authReader.read();
 
-    if (options.useTLS) {
-        std::cout << "Načítám SSL.." << std::endl;
-    }
-
     ImapClient imapClient(options);
-    if (imapClient.state == ImapClientState::Error){
-        imapClient.disconnect();
-        return 1;
+
+    while (imapClient.state != ImapClientState::Logout){
+        switch (imapClient.state)
+        {
+        case ImapClientState::Disconnected:
+            imapClient.connectImap();
+            break;
+        case ImapClientState::ConnectionEstabilished:
+            imapClient.receiveGreeting();
+            break;
+        case ImapClientState::NotAuthenticated:
+            imapClient.login(authData);
+            break;
+        case ImapClientState::Authenticated:
+            if (imapClient.selectMailbox() != 0){
+                return 1;
+            }
+            break;
+        case ImapClientState::SelectedMailbox:
+            if (imapClient.fetchMessages() != 0){
+                return 1;
+            }
+            break;
+        
+        default:
+            break;
+        }
     }
 
-    if (imapClient.login(authData) != 0){
-        imapClient.disconnect();
-        return 1;
-    }
-    if (imapClient.selectMailbox() != 0){
-        imapClient.disconnect();
-        return 1;
-    }
-    if (imapClient.fetchMessages() != 0){
-        imapClient.disconnect();
-        return 1;
-    }
+    // switch (imapClient.state)
+    // {
+    // case ImapClientState::Disconnected:
+    //     if (imapClient.connectImap() != 0){
+    //         return 1;
+    //     }
+    //     break;
+    // case ImapClientState::Logout:
+    //     return 1;
+    //     break;
+    // case ImapClientState::NotAuthenticated:
+    //     if (imapClient.login(authData) != 0){
+    //         return 1;
+    //     }
+    //     break;
+    
+    // default:
+    //     break;
+    // } (imapClient.state == ImapClientState::Logout || imapClient.state == ImapClientState::Disconnected){
         
-    imapClient.disconnect();
+    // }
+
+    // if (imapClient.login(authData) != 0){
+    //     return 1;
+    // }
+    // if (imapClient.selectMailbox() != 0){
+    //     return 1;
+    // }
+    // if (imapClient.fetchMessages() != 0){
+    //     return 1;
+    // }
+    
     return 0;
 }

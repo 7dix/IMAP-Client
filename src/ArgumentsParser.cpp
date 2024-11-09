@@ -14,7 +14,6 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
         switch (opt) 
         {
             case 'p':
-                std::cout << "Option -p with value " << optarg << std::endl; // Debug
                 if (std::atoi(optarg) < 0 || std::atoi(optarg) > 65536) {
                     std::cerr << "Číslo portu je mimo rozsah (0-65535)" << std::endl;
                     printUsage();
@@ -23,11 +22,9 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
                 options.port = std::atoi(optarg);
                 break;
             case 'T':
-                std::cout << "Option -T" << std::endl; // Debug
                 options.useTLS = true;
                 break;
             case 'c':
-                std::cout << "Option -c with value " << optarg << std::endl; // Debug
                 if (!optarg || !options.useTLS) {
                     printUsage();
                     std::exit(EXIT_FAILURE);
@@ -35,7 +32,6 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
                 options.certFile = optarg;
                 break;
             case 'C':
-                std::cout << "Option -C with value " << optarg << std::endl; // Debug
                 if (!options.useTLS) {
                     printUsage();
                     std::exit(EXIT_FAILURE);
@@ -45,23 +41,18 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
                 }
                 break;
             case 'n':
-                std::cout << "Option -n" << std::endl; // Debug
                 options.onlyNewMessages = true;
                 break;
             case 'h':
-                std::cout << "Option -h" << std::endl; // Debug
                 options.headersOnly = true;
                 break;
             case 'a':
-                std::cout << "Option -a with value " << optarg << std::endl; // Debug
                 options.authFile = optarg;
                 break;
             case 'b':
-                std::cout << "Option -b with value " << optarg << std::endl; // Debug
                 options.mailbox = optarg;
                 break;
             case 'o':
-                std::cout << "Option -o with value " << optarg << std::endl; // Debug
                 options.outputDir = optarg;
                 break;
             default:

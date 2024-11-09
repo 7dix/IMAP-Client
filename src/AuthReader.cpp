@@ -18,7 +18,6 @@ AuthData AuthReader::read() {
     AuthData authData;
     std::string line;
     while (std::getline(file, line)) {
-        std::cout << "Line: " << line << std::endl;
         std::istringstream iss(line);
         std::string key, value;
         if (std::getline(iss, key, '=') && std::getline(iss, value)) {

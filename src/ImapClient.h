@@ -5,27 +5,32 @@
 
 #include "ArgumentsParser.h"
 #include "AuthReader.h"
+
+#include "ImapParser.h"
+#include "ImapResponseRegex.h"
+
 #include "openssl/ssl.h"
 #include "openssl/err.h"
-#include  "openssl/bio.h"
+#include "openssl/bio.h"
 
 
 enum class ImapClientState {
     Disconnected,
-    Connecting,
-    Connected,
-    Authenticating,
+    ConnectionEstabilished,
+    NotAuthenticated,
     Authenticated,
-    Fetching,
-    Error
+    SelectedMailbox,
+    Logout
 };
 
 class ImapClient {
 public:
     ImapClient(ProgramOptions &options);
     ~ImapClient();
+    void connectImap();
     void disconnect();
-    int login(AuthData auth);
+    void receiveGreeting();
+    void login(AuthData auth);
     int selectMailbox();
     int fetchMessages();
     std::string getMessages(int messageCount);
@@ -39,7 +44,6 @@ private:
     SSL_CTX* ssl_ctx_;
     SSL* ssl_; 
 
-    int connectImap();
     int establishConnection();
     int TLSHandshake();
     int sendCommand(const std::string& command);
@@ -48,6 +52,9 @@ private:
     std::string generateTag();
     std::vector<int> getMessageIdsFromResponse(const std::string &response);
     std::string downloadMessage(int id);
+    int saveMessage(const std::string &message, int id);
+    int prepareOutputDir();
+    void userInfo(const int messageCount);
 };
 
 #endif // IMAPCLIENT_H

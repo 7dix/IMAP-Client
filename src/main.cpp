@@ -15,6 +15,8 @@ int main(int argc, char* argv[]) {
 
     ImapClient imapClient(options);
 
+
+    // Main loop for the IMAP client
     while (imapClient.state != ImapClientState::Logout){
         switch (imapClient.state)
         {
@@ -28,52 +30,16 @@ int main(int argc, char* argv[]) {
             imapClient.login(authData);
             break;
         case ImapClientState::Authenticated:
-            if (imapClient.selectMailbox() != 0){
-                return 1;
-            }
+            imapClient.selectMailbox();
             break;
         case ImapClientState::SelectedMailbox:
-            if (imapClient.fetchMessages() != 0){
-                return 1;
-            }
+            imapClient.fetchMessages();
             break;
         
         default:
             break;
         }
     }
-
-    // switch (imapClient.state)
-    // {
-    // case ImapClientState::Disconnected:
-    //     if (imapClient.connectImap() != 0){
-    //         return 1;
-    //     }
-    //     break;
-    // case ImapClientState::Logout:
-    //     return 1;
-    //     break;
-    // case ImapClientState::NotAuthenticated:
-    //     if (imapClient.login(authData) != 0){
-    //         return 1;
-    //     }
-    //     break;
-    
-    // default:
-    //     break;
-    // } (imapClient.state == ImapClientState::Logout || imapClient.state == ImapClientState::Disconnected){
-        
-    // }
-
-    // if (imapClient.login(authData) != 0){
-    //     return 1;
-    // }
-    // if (imapClient.selectMailbox() != 0){
-    //     return 1;
-    // }
-    // if (imapClient.fetchMessages() != 0){
-    //     return 1;
-    // }
     
     return 0;
 }

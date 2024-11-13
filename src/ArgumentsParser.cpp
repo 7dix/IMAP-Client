@@ -8,6 +8,16 @@
 ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
     ProgramOptions options;
 
+    if (argc < 2) {
+        printUsage();
+        throw std::invalid_argument("Nebyly zadány žádné argumenty.");
+    }
+
+    options.server = argv[1];
+    argc--;
+    argv++;
+    optind = 1;
+
     int opt;
     while ((opt = getopt(argc, argv, "p:Tc:C:nha:b:o:")) != -1)
     {
@@ -15,9 +25,8 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
         {
             case 'p':
                 if (std::atoi(optarg) < 0 || std::atoi(optarg) > 65536) {
-                    std::cerr << "Číslo portu je mimo rozsah (0-65535)" << std::endl;
                     printUsage();
-                    std::exit(EXIT_FAILURE);
+                    throw std::invalid_argument("Číslo portu je mimo rozsah (1-65535)");
                 }
                 options.port = std::atoi(optarg);
                 break;
@@ -27,14 +36,14 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
             case 'c':
                 if (!optarg || !options.useTLS) {
                     printUsage();
-                    std::exit(EXIT_FAILURE);
+                    throw std::invalid_argument("Chybí argument -T pro použití TLS.");
                 }
                 options.certFile = optarg;
                 break;
             case 'C':
                 if (!options.useTLS) {
                     printUsage();
-                    std::exit(EXIT_FAILURE);
+                    throw std::invalid_argument("Chybí argument -T pro použití TLS.");
                 }
                 if (optarg) {
                     options.certDir = optarg;
@@ -57,24 +66,18 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
                 break;
             default:
                 printUsage();
-                std::exit(EXIT_FAILURE);
+                throw std::invalid_argument("Neznámý argument.");
         }
     }
 
     // Check for required options after option parsing
-    if (options.authFile.empty() || options.outputDir.empty()) {
-        std::cerr << "Argumenty -a a -o jsou povinná." << std::endl;
+    if (options.authFile.empty()) {
         printUsage();
-        exit(EXIT_FAILURE);
+        throw std::invalid_argument("Chybí povinný argument -a.");
     }
-
-    // Access the positional argument(s) after options have been parsed
-    if (optind < argc) {
-        options.server = argv[optind];
-    } else {
-        std::cerr << "Adresa serveru je povinná." << std::endl;
+    if (options.outputDir.empty()) {
         printUsage();
-        exit(EXIT_FAILURE);
+        throw std::invalid_argument("Chybí povinný argument -o.");
     }
 
 

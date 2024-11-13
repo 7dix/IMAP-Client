@@ -7,39 +7,21 @@
 #include "ImapClient.h"
 
 int main(int argc, char* argv[]) {
-    ArgumentsParser argumentsParser;
-    ProgramOptions options = argumentsParser.parse(argc, argv);
+    try {
+        ArgumentsParser argumentsParser;
+        ProgramOptions options = argumentsParser.parse(argc, argv);
 
-    AuthReader authReader(options.authFile);
-    AuthData authData = authReader.read();
+        AuthReader authReader(options.authFile);
+        AuthData authData = authReader.read();
 
-    ImapClient imapClient(options);
-
-
-    // Main loop for the IMAP client
-    while (imapClient.state != ImapClientState::Logout){
-        switch (imapClient.state)
-        {
-        case ImapClientState::Disconnected:
-            imapClient.connectImap();
-            break;
-        case ImapClientState::ConnectionEstabilished:
-            imapClient.receiveGreeting();
-            break;
-        case ImapClientState::NotAuthenticated:
-            imapClient.login(authData);
-            break;
-        case ImapClientState::Authenticated:
-            imapClient.selectMailbox();
-            break;
-        case ImapClientState::SelectedMailbox:
-            imapClient.fetchMessages();
-            break;
-        
-        default:
-            break;
+        ImapClient imapClient(options);
+        if (imapClient.run(authData) != 0) {
+            return 1;
         }
+        return 0;
+        
+    } catch (const std::exception& e) {
+        std::cerr << "Chyba: " << e.what() << std::endl;
+        return 1;
     }
-    
-    return 0;
 }

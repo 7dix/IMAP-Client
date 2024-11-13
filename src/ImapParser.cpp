@@ -1,68 +1,45 @@
 // ImapParser.cpp
 
 #include "ImapParser.h"
+#include "ImapException.h"
 #include <sstream>
 
-/**
- * @brief Parses the login response from the IMAP server.
- * 
- * @param response The response string from the server.
- * @return int Returns 0 if login is successful, otherwise returns 1.
- */
-int ImapParser::parseLoginResponse(const std::string &response) {
+void ImapParser::parseLoginResponse(const std::string &response) {
     std::istringstream responseStream(response);
     std::string line;
     std::smatch match;
 
     while (std::getline(responseStream, line)) {
         if (std::regex_search(line, match, LOGIN_OK)) {
-            return 0;
+            return;
         } else if (std::regex_search(line, match, LOGIN_NO)) {
-            std::cerr << "Přihlášení se nezdařilo: " << match[1].str() << std::endl;
-            return 1;
+            throw ImapException("Přihlášení se nezdařilo: " + match[1].str());
         } else if (std::regex_search(line, match, LOGIN_BAD)) {
-            std::cerr << "Přihlášení se nezdařilo: " << match[1].str() << std::endl;
-            return 1;
+            throw ImapException("Přihlášení se nezdařilo: " + match[1].str());
         }
     }
 
-    std::cerr << "Přihlášení se nezdařilo." << std::endl;
-    return 1;
+    throw ImapException("Nepodařilo se přihlásit.");
 }
 
-/**
- * @brief Parses the select response from the IMAP server when selecting a mailbox.
- * 
- * @param response The response string from the server.
- * @return int Returns 0 if the mailbox is successfully selected, otherwise returns 1.
- */
-int ImapParser::parseSelectResponse(const std::string &response) {
+void ImapParser::parseSelectResponse(const std::string &response) {
     std::istringstream responseStream(response);
     std::string line;
     std::smatch match;
 
     while (std::getline(responseStream, line)) {
         if (std::regex_search(line, match, SELECT_OK)) {
-            return 0;
+            return;
         } else if (std::regex_search(line, match, SELECT_NO)) {
-            std::cerr << "Nepodařilo se vybrat složku: " << match[1].str() << std::endl;
-            return 1;
+            throw ImapException("Nepodařilo se vybrat složku: " + match[1].str());
         } else if (std::regex_search(line, match, SELECT_BAD)) {
-            std::cerr << "Nepodařilo se vybrat složku: " << match[1].str() << std::endl;
-            return 1;
+            throw ImapException("Nepodařilo se vybrat složku: " + match[1].str());
         }
     }
 
-    std::cerr << "Nepodařilo se vybrat složku." << std::endl;
-    return 1;
+    throw ImapException("Nepodařilo se vybrat složku.");
 }
 
-/**
- * @brief Parses the search response from the IMAP server to retrieve message IDs.
- * 
- * @param response The response string from the server.
- * @return std::vector<int> A vector containing the IDs of the messages found.
- */
 std::vector<int> ImapParser::parseSearchResponse(const std::string &response) {
     std::vector<int> messageIds;
     std::istringstream responseStream(response);
@@ -83,12 +60,6 @@ std::vector<int> ImapParser::parseSearchResponse(const std::string &response) {
     return messageIds;
 }
 
-/**
- * @brief Parses the fetch response from the IMAP server to retrieve an email's contents.
- * 
- * @param response The response string from the server.
- * @return std::string The content of the email. Returns an empty string if fetching fails.
- */
 std::string ImapParser::parseFetchResponse(const std::string &response) {
     std::istringstream responseStream(response);
     std::string line;
@@ -97,11 +68,9 @@ std::string ImapParser::parseFetchResponse(const std::string &response) {
     while (std::getline(responseStream, line)) {
         if (std::regex_search(line, match, FETCH_OK)) {
 
-            // Match the actual message content
-            std::regex fetch_regex(R"(\* \d+ FETCH .*?\{(\d+)\}\r?\n)");
             std::smatch match;
 
-            if (std::regex_search(response, match, fetch_regex)) {
+            if (std::regex_search(response, match, FETCH_MESSAGE)) {
                 // Extract the message size
                 size_t message_size = std::stoul(match[1].str());
 
@@ -110,8 +79,7 @@ std::string ImapParser::parseFetchResponse(const std::string &response) {
 
                 // Ensure we have enough data
                 if (response.size() < message_start + message_size) {
-                    std::cerr << "Nepodařilo se stáhnout email: chybí data." << std::endl;
-                    return "";
+                    throw ImapException("Nepodařilo se stáhnout email: chybí data.");
                 }
 
                 // Extract the message content
@@ -119,33 +87,20 @@ std::string ImapParser::parseFetchResponse(const std::string &response) {
                 return message_content;
             }
             else{
-                std::cerr << "Nepodařilo se stáhnout email: neznámá odpověď serveru." << std::endl;
-                return "";
+                throw ImapException("Nepodařilo se stáhnout email: neznámá odpověď serveru.");
             }
-
-
-            return 0;
         } 
         else if (std::regex_search(line, match, FETCH_NO)) {
-            std::cerr << "Nepodařilo se stáhnout email: " << match[1].str() << std::endl;
-            return "";
+            throw ImapException("Nepodařilo se stáhnout email: " + match[1].str());
         } 
         else if (std::regex_search(line, match, FETCH_BAD)) {
-            std::cerr << "Nepodařilo se stáhnout email: " << match[1].str() << std::endl;
-            return "";
+            throw ImapException("Nepodařilo se stáhnout email: " + match[1].str());
         }
     }
 
-    return 0;
+    throw ImapException("Nepodařilo se přečíst odpověď serveru.");
 }
 
-/**
- * @brief Checks if the response received contains the specified tag.
- * 
- * @param response The response string from the server.
- * @param tag The tag to search for in the response.
- * @return bool Returns true if the tag is found, otherwise false.
- */
 bool ImapParser::checkResponseReceived(const std::string &response, const std::string &tag) {
     std::smatch match;
     if (std::regex_search(response, match, RESPONSE_TAG_REGEX)) {

@@ -1,6 +1,9 @@
 // ImapClient.cpp
 
 #include "ImapClient.h"
+#include "ImapException.h"
+#include "FileHandler.h"
+#include "FileException.h"
 #include <stdlib.h>
 #include <iostream>
 #include <sstream>
@@ -17,18 +20,26 @@
 #include <sys/types.h>
 #include <regex>
 #include <dirent.h>
+#include <sys/select.h>
+#include <errno.h>
 
 ImapClient::ImapClient(ProgramOptions &options)
     : options_(options), ssl_ctx_(nullptr), ssl_(nullptr) {
     // Initialize OpenSSL
-    SSL_load_error_strings();   
+    SSL_load_error_strings();
     OpenSSL_add_ssl_algorithms();
 
+    // Set the initial state
     state = ImapClientState::Disconnected;
+
+    // Initialize FileHandler
+    fileHandler = new FileHandler(options_.outputDir);
 }
 
 ImapClient::~ImapClient() {
-    disconnect();
+    if (socket_ != -1) {
+        close(socket_);
+    }
     if (ssl_) { 
         SSL_shutdown(ssl_);
         SSL_free(ssl_);
@@ -41,18 +52,63 @@ ImapClient::~ImapClient() {
     EVP_cleanup();
 }
 
+int ImapClient::run(AuthData authData) {
+    username = authData.username;
+    while (state != ImapClientState::Logout){
+        try {
+            switch (state)
+            {
+            case ImapClientState::Disconnected:
+                connectImap();
+                break;
+            case ImapClientState::ConnectionEstabilished:
+                receiveGreeting();
+                break;
+            case ImapClientState::NotAuthenticated:
+                login(authData);
+                break;
+            case ImapClientState::Authenticated:
+                selectMailbox();
+                break;
+            case ImapClientState::SelectedMailbox:
+                fetchMessages();
+                break;
+            
+            default:
+                break;
+            }
+        } catch (const ImapException& e) {
+            std::cerr << "IMAP chyba: " << e.what() << std::endl;
+            state = ImapClientState::Logout;
+            disconnect();
+            return 1;
+        } catch (const FileException& e) {
+            std::cerr << "Chyba souboru: " << e.what() << std::endl;
+            state = ImapClientState::Logout;
+            disconnect();
+            return 1;
+        } catch (const std::exception& e) {
+            std::cerr << "Chyba: " << e.what() << std::endl;
+            state = ImapClientState::Logout;
+            disconnect();
+            return 1;
+        }
+    }
+    disconnect();
+    return 0;
+}
+
+
 void ImapClient::connectImap() {
     int conn = establishConnection();
     if (conn != 0){
-        state = ImapClientState::Logout;
-        return;
+        throw ImapException("Nepodařilo se navázat spojení");
     }
 
     if (options_.useTLS) {
         int hs = TLSHandshake();
         if (hs != 0){
-            state = ImapClientState::Logout;
-            return;
+            throw ImapException("Nepodařilo se navázat TLS spojení");
         }
     }
     state = ImapClientState::ConnectionEstabilished;
@@ -68,22 +124,19 @@ int ImapClient::establishConnection() {
 
     int status = getaddrinfo(options_.server.c_str(), std::to_string(options_.port).c_str(), &hints, &res);
     if (status != 0) {
-        std::cerr << "Chyba při získávání IP adresy serveru." << std::endl;
-        return 1;
+        throw ImapException("Nepodařilo se získat IP adresu serveru");
     }
 
     socket_ = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
     if (socket_ < 0) {
-        std::cerr << "Nepodařilo se otevřít socket pro připojení." << std::endl;
-        return 1;
+        throw ImapException("Nepodařilo se otevřít socket pro připojení");
     }
 
     // Connect to the server
     if (connect(socket_, res->ai_addr, res->ai_addrlen) == -1) {
         close(socket_); // Close the socket on failure
         freeaddrinfo(res);
-        std::cerr << "Nepodařilo se připojit k serveru." << std::endl;
-        return 1;
+        throw ImapException("Nepodařilo se připojit k serveru");
     }
 
     freeaddrinfo(res);
@@ -95,8 +148,7 @@ int ImapClient::TLSHandshake() {
     // Initialize SSL object for the connection
     ssl_ctx_ = SSL_CTX_new(SSLv23_client_method());
     if (!ssl_ctx_) {
-        std::cerr << "Nepodařilo se vytvořit SSL kontext." << std::endl;
-        return 1;
+        throw ImapException("Nepodařilo se vytvořit SSL kontext");
     }
     
     // TODO check viz discord jestli je to spravne
@@ -105,8 +157,7 @@ int ImapClient::TLSHandshake() {
         if (SSL_CTX_load_verify_locations(ssl_ctx_, 
                                           options_.certFile.empty() ? nullptr : options_.certFile.c_str(), 
                                           options_.certDir.empty() ? nullptr : options_.certDir.c_str()) != 1) {
-            std::cerr << "Nepodařilo se načíst SSL certifikáty." << std::endl;
-            return 1;
+            throw ImapException("Nepodařilo se načíst SSL certifikáty");
         }
     }
 
@@ -115,9 +166,8 @@ int ImapClient::TLSHandshake() {
 
     // Perform SSL handshake
     if (SSL_connect(ssl_) <= 0) {
-        std::cerr << "TLS handshake failed." << std::endl;
+        throw ImapException("Nepodařilo se navázat TLS spojení");
         ERR_print_errors_fp(stderr);
-        return 1;
     }
 
     return 0;
@@ -145,63 +195,39 @@ void ImapClient::receiveGreeting() {
         state = ImapClientState::Authenticated;
         return;
     } else if (std::regex_search(recved, GREETING_BYE)) {
-        std::cerr << "Server odmítl spojení." << std::endl;
-        state = ImapClientState::Logout;
-        return;
+        throw ImapException("Server odmítl spojení.");
     } else {
-        std::cerr << "Nepodařilo se přijmout odpověď ze serveru." << std::endl;
-        state = ImapClientState::Logout;
-        return;
+        throw ImapException("Nepodařilo se přijmout odpověď ze serveru.");
     }
 }
 
 void ImapClient::login(AuthData auth) {
-    // Construct the LOGIN command
     std::ostringstream command;
     command << generateTag() << " LOGIN " << auth.username << " " << auth.password;
 
-    // Send the LOGIN command
     if (sendCommand(command.str()) != 0) {
-        std::cerr << "Nepodařilo se odeslat příkaz LOGIN." << std::endl;
-        state = ImapClientState::Logout;
-        return;
+        throw ImapException("Nepodařilo se odeslat příkaz LOGIN");
     }
 
-    // Receive the response from the server
     std::string response = receiveResponse();
 
-    // Parse the response to check for success login
-    if (ImapParser::parseLoginResponse(response) != 0) {
-        state = ImapClientState::Logout;
-        return;
-    }
+    ImapParser::parseLoginResponse(response);
 
-    // Login successful
     state = ImapClientState::Authenticated;
-    return;
 }
 
 void ImapClient::selectMailbox() {
-    // Construct the SELECT command
     std::ostringstream command;
     command << generateTag() << " SELECT " << options_.mailbox;
 
-    // Send the SELECT command
-    if (sendCommand(command.str()) != 0){
-        std::cerr << "Nepodařilo se odeslat příkaz SELECT." << std::endl;
-        state = ImapClientState::Logout;
-        return;
+    if (sendCommand(command.str()) != 0) {
+        throw ImapException("Nepodařilo se odeslat příkaz SELECT");
     }
 
-    // Receive the response from the server
     std::string response = receiveResponse();
-    if (ImapParser::parseSelectResponse(response) != 0){
-        state = ImapClientState::Logout;
-        return;
-    }
+    ImapParser::parseSelectResponse(response);
 
     state = ImapClientState::SelectedMailbox;
-    return;
 }
 
 void ImapClient::fetchMessages() {
@@ -212,41 +238,45 @@ void ImapClient::fetchMessages() {
         command << generateTag() << " SEARCH ALL" << std::endl;
     }
 
-    // Send the SEARCH command
-    if (sendCommand(command.str()) != 0){
-        std::cerr << "Nepodařilo se odeslat příkaz SEARCH." << std::endl;
-        state = ImapClientState::Logout;
-        return;
+    if (sendCommand(command.str()) != 0) {
+        throw ImapException("Nepodařilo se odeslat příkaz SEARCH");
     }
 
-    // Receive the response from the server
     std::string response = receiveResponse();
-
     std::vector<int> messageIds = ImapParser::parseSearchResponse(response);
-    if (messageIds.empty()) {
-        userInfo(0);
-        state = ImapClientState::Logout;
-        return;
-    }
-
-    if (prepareOutputDir() != 0){
-        state = ImapClientState::Logout;
-        return;
-    }
 
     int count = 0;
-    for (int id : messageIds) {
-        std::string message = downloadMessage(id);
-        if (message == ""){
-            state = ImapClientState::Logout;
-            return;
+    std::vector<int> downloadedMessages;
+
+    for (int id : messageIds){
+        int messageInfo = fileHandler->isMessageAlreadyDownloaded(id, username, options_.mailbox);
+        if (messageInfo == 1 || (messageInfo == 2 && options_.headersOnly)){
+            downloadedMessages.push_back(id);
+        } else if (messageInfo == -1){
+            throw ImapException("Nepodařilo se zjistit stav zprávy");
         }
-        if (saveMessage(message, id) != 0){
-            state = ImapClientState::Logout;
-            return;
+    }
+
+    if (messageIds.size() != 0){
+        int messageCount = messageIds.size() - downloadedMessages.size();
+        if (downloadedMessages.size() != 0) {
+            std::cout << downloadedMessages.size() << " zpráv již bylo staženo." << std::endl;
         }
-        std::cout << "Staženo " << count << "/" << messageIds.size() << " zpráv." << std::endl;
-        count++;
+
+        for (int id : messageIds) {
+            if (std::find(downloadedMessages.begin(), downloadedMessages.end(), id) != downloadedMessages.end()){
+                continue;
+            }
+            // Download the message
+            std::string message = downloadMessage(id);
+            if (message.empty()) {
+                throw ImapException("Nepodařilo se stáhnout zprávu");
+            }
+            fileHandler->saveMessage(message, id, username, options_.mailbox);
+            
+            count++;
+            std::cout << "Staženo " << count << "/" << messageCount << " zpráv." << std::endl;
+        }
     }
 
     state = ImapClientState::Logout;
@@ -269,15 +299,15 @@ void ImapClient::userInfo(const int messageCount) {
         if (messageCount >= 5){
             messText = " zpráv ";
             newText = " nových";
-            dledText = "Staženo ";
+            dledText = "Uloženo ";
         } else if ( messageCount == 1){
             messText = " zpráva ";
             newText = " nová";
-            dledText = "Stažena ";
+            dledText = "Uložena ";
         } else {
             messText = " zprávy ";
             newText = " nové";
-            dledText = "Staženy ";
+            dledText = "Uloženy ";
         }
 
         if (!options_.onlyNewMessages){
@@ -309,8 +339,7 @@ int ImapClient::sendCommand(const std::string& command) {
         bytes_sent = send(socket_, full_command.c_str(), full_command.size(), 0);
     }
     if (bytes_sent < 0) {
-        std::cerr << "Failed to send command to the server." << std::endl;
-        return 1;
+        throw ImapException("Nepodařilo se odeslat příkaz na server");
     }
 
     return 0;
@@ -333,8 +362,7 @@ std::string ImapClient::receiveResponse() {
         maxTries--;
 
         if (maxTries == 0) {
-            std::cerr << "Nepodařilo se přijmout kompletní odpověď ze serveru." << std::endl;
-            return "";
+            throw ImapException("Nepodařilo se přijmout kompletní odpověď ze serveru");
         }
     }
 
@@ -344,31 +372,81 @@ std::string ImapClient::receiveResponse() {
 
 std::string ImapClient::recvData() {
     char buffer[4096];
-    int bytes_received;
-    if (ssl_) {
-        bytes_received = SSL_read(ssl_, buffer, sizeof(buffer) - 1);
-        if (bytes_received <= 0) {
-            int ssl_error = SSL_get_error(ssl_, bytes_received);
-            if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE) {
-                // Recursively call recvData to repeat the read operation
-                return recvData();
-            } else if (ssl_error == SSL_ERROR_ZERO_RETURN) {
-                std::cerr << "Server ukončil spojení." << std::endl;
-                return "";
+    int bytes_received = 0;
+    const int timeout_seconds = 10;
+
+    while (true) {
+        fd_set read_fds;
+        FD_ZERO(&read_fds);
+        FD_SET(socket_, &read_fds);
+        int max_fd = socket_ + 1;
+
+        struct timeval timeout;
+        timeout.tv_sec = timeout_seconds;
+        timeout.tv_usec = 0;
+
+        int select_result;
+        if (ssl_) {
+            // For SSL, use SSL_pending to check if there's data to read
+            if (SSL_pending(ssl_) > 0) {
+                select_result = 1; // Data is already pending
             } else {
-                std::cerr << "Nastal problém s SSL: " << ssl_error << std::endl;
-                return "";
+                select_result = select(max_fd, &read_fds, NULL, NULL, &timeout);
             }
+        } else {
+            // For non-SSL, use select directly
+            select_result = select(max_fd, &read_fds, NULL, NULL, &timeout);
         }
-    } else {
-        bytes_received = recv(socket_, buffer, sizeof(buffer) - 1, 0);
-        if (bytes_received <= 0) {
-            std::cerr << "Nepodařilo se přijmout data ze serveru." << std::endl;
-            return "";
+
+        if (select_result > 0) {
+            if (FD_ISSET(socket_, &read_fds)) {
+                if (ssl_) {
+                    bytes_received = SSL_read(ssl_, buffer, sizeof(buffer) - 1);
+                } else {
+                    bytes_received = recv(socket_, buffer, sizeof(buffer) - 1, 0);
+                }
+
+                if (bytes_received > 0) {
+                    buffer[bytes_received] = '\0';
+                    return std::string(buffer);
+                } else if (bytes_received == 0) {
+                    // Connection closed by the server
+                    throw ImapException("Server ukončil spojení");
+                } else {
+                    if (ssl_) {
+                        int ssl_error = SSL_get_error(ssl_, bytes_received);
+                        if (ssl_error == SSL_ERROR_WANT_READ || ssl_error == SSL_ERROR_WANT_WRITE) {
+                            // The operation did not complete; retry
+                            continue;
+                        } else if (ssl_error == SSL_ERROR_ZERO_RETURN) {
+                            throw ImapException("Server ukončil spojení");
+                        } else {
+                            // Print SSL error details for debugging
+                            ERR_print_errors_fp(stderr);
+                            throw ImapException("Nastal problém s SSL spojením");
+                        }
+                    } else {
+                        if (errno == EWOULDBLOCK || errno == EAGAIN) {
+                            // No data available; retry
+                            continue;
+                        } else {
+                            throw ImapException("Nepodařilo se přijmout data ze serveru");
+                        }
+                    }
+                }
+            }
+        } else if (select_result == 0) {
+            // Timeout occurred
+            throw ImapException("Timeout při čekání na data ze serveru");
+        } else {
+            // select() error
+            if (errno == EINTR) {
+                // Interrupted by signal, retry
+                continue;
+            }
+            throw ImapException("Nepodařilo se přijmout data ze serveru");
         }
     }
-    buffer[bytes_received] = '\0';
-    return std::string(buffer);
 }
 
 
@@ -382,8 +460,7 @@ std::string ImapClient::downloadMessage(int id) {
 
     // Send the FETCH command
     if (sendCommand(command.str()) != 0){
-        std::cerr << "Nepodařilo se odeslat příkaz FETCH." << std::endl;
-        return "";
+        throw ImapException("Nepodařilo se odeslat příkaz FETCH");
     }
 
     // Receive the response from the server
@@ -391,69 +468,4 @@ std::string ImapClient::downloadMessage(int id) {
     std::string message = ImapParser::parseFetchResponse(response);
 
     return message;
-}
-
-int ImapClient::saveMessage(const std::string &message_content, int id) {
-    if (!message_content.empty()) {
-        // Check and create (if needed) the output directory
-        mkdir(options_.outputDir.c_str(), 0775);
-
-        // Create filename
-        std::string filename = options_.outputDir + "/message_" + std::to_string(id) + ".eml";
-
-        // Open the file in binary mode
-        std::ofstream outfile(filename, std::ios::binary);
-        if (!outfile.is_open()) {
-            std::cerr << "Nepodařilo se otevřít soubor: " << filename << std::endl;
-            return 1;
-        }
-
-        // Write the message content to the file
-        outfile.write(message_content.data(), message_content.size());
-        if (!outfile.good()) {
-            std::cerr << "Nepodařilo se zapsat do souboru: " << filename << std::endl;
-            outfile.close();
-            return 1;
-        }
-
-        // Close the file stream
-        outfile.close();
-
-        // Return 0 to indicate success
-        return 0;
-    } else {
-        return 1;
-    }
-}
-
-int ImapClient::prepareOutputDir() {
-    struct stat info;
-    if (stat(options_.outputDir.c_str(), &info) == 0 && (info.st_mode & S_IFDIR)) {
-        // Directory exists
-        DIR *dir = opendir(options_.outputDir.c_str());
-        if (dir) {
-            struct dirent *entry;
-            while ((entry = readdir(dir)) != nullptr) {
-                if (entry->d_name[0] != '.') { // Skip "." and ".."
-                    std::string filePath = options_.outputDir + "/" + entry->d_name;
-                    if (remove(filePath.c_str()) != 0) {
-                        std::cerr << "Nepodařilo se smazat soubor: " << filePath << std::endl;
-                        closedir(dir);
-                        return 1;
-                    }
-                }
-            }
-            closedir(dir);
-        } else {
-            std::cerr << "Nepodařilo se otevřít adresář: " << options_.outputDir << std::endl;
-            return 1;
-        }
-    } else {
-        // Directory does not exist, create it
-        if (mkdir(options_.outputDir.c_str(), 0775) != 0) {
-            std::cerr << "Nepodařilo se vytvořit adresář: " << options_.outputDir << std::endl;
-            return 1;
-        }
-    }
-    return 0;
 }

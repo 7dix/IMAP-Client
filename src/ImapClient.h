@@ -5,6 +5,7 @@
 
 #include "ArgumentsParser.h"
 #include "AuthReader.h"
+#include "FileHandler.h"
 
 #include "ImapParser.h"
 #include "ImapResponseRegex.h"
@@ -45,65 +46,87 @@ public:
     ~ImapClient();
 
     /**
-     * @brief Connects to the IMAP server.
+     * @brief Runs the IMAP client's main operation loop.
      *
-     * Establishes a connection to the IMAP server using the provided
-     * server address and port from the options. Performs a TLS handshake
-     * if the useTLS option is enabled. Updates the client's state
-     * based on the success of the connection.
+     * Controls the IMAP client state machine through the following states:
+     * - Disconnected -> Establishes initial connection
+     * - ConnectionEstablished -> Receives server greeting
+     * - NotAuthenticated -> Performs login
+     * - Authenticated -> Selects mailbox
+     * - SelectedMailbox -> Fetches messages
+     * - Logout -> Disconnects from server
+     *
+     * @param authData Authentication credentials containing username and password
+     * @return int Returns 0 on successful completion, 1 on error
      */
-    void connectImap();
+    int run(AuthData authData);
 
     /**
-     * @brief Disconnects the IMAP client from the server.
+     * @brief Establishes a secure connection to the IMAP server.
      *
-     * Sends the LOGOUT command and closes the connection. Updates
-     * the client's state to Disconnected.
+     * Performs the following steps:
+     * 1. Creates a TCP socket connection to the server
+     * 2. If TLS is enabled, performs TLS handshake
+     * 3. Updates client state to ConnectionEstablished on success
+     *
+     * @throws ImapException If connection or TLS handshake fails
      */
-    void disconnect();
+    virtual void connectImap();
 
     /**
-     * @brief Receives the initial greeting message from the IMAP server.
+     * @brief Gracefully terminates the server connection.
      *
-     * Waits for a greeting message from the IMAP server and updates
-     * the client's state based on the received message.
+     * 1. Sends LOGOUT command to server if connected
+     * 2. Closes socket and SSL connections
+     * 3. Sets state to Disconnected
      */
-    void receiveGreeting();
+    virtual void disconnect();
 
     /**
-     * @brief Logs in to the IMAP server using the provided authentication data.
+     * @brief Processes the server's initial greeting.
      *
-     * Sends the LOGIN command with the provided username and password.
-     * Receives and parses the server's response to determine
-     * the success of the login operation.
+     * Analyzes the greeting response and sets appropriate client state:
+     * - OK -> NotAuthenticated
+     * - PREAUTH -> Authenticated
+     * - BYE -> Throws exception
      *
-     * @param auth An AuthData object containing the username and password for authentication.
+     * @throws ImapException If greeting is invalid or indicates server rejection
      */
-    void login(AuthData auth);
+    virtual void receiveGreeting();
 
     /**
-     * @brief Selects the mailbox specified in the program options.
+     * @brief Authenticates with the IMAP server.
      *
-     * Constructs and sends the SELECT command to select the mailbox.
-     * Updates the client's state based on the server's response.
+     * Sends LOGIN command with credentials and validates server response.
+     * Updates state to Authenticated on success.
+     *
+     * @param auth Authentication data containing username and password
+     * @throws ImapException If authentication fails
      */
-    void selectMailbox();
+    virtual void login(AuthData auth);
 
     /**
-     * @brief Fetches messages from the selected mailbox.
+     * @brief Opens the configured mailbox.
      *
-     * Searches for messages based on options, downloads them,
-     * and saves them to the specified output directory.
+     * Sends SELECT command for the mailbox specified in program options.
+     * Updates state to SelectedMailbox on success.
+     *
+     * @throws ImapException If mailbox selection fails
      */
-    void fetchMessages();
+    virtual void selectMailbox();
 
     /**
-     * @brief Retrieves messages from the server.
+     * @brief Downloads messages from the selected mailbox.
      *
-     * @param messageCount The number of messages to retrieve.
-     * @return A string containing the messages.
+     * 1. Searches for messages based on configured criteria
+     * 2. Downloads new or all messages based on options
+     * 3. Saves messages to output directory
+     * 4. Updates state to Logout when complete
+     *
+     * @throws ImapException If message fetch operations fail
+     * @throws FileException If message saving operations fail
      */
-    std::string getMessages(int messageCount);
+    virtual void fetchMessages();
 
     /**
      * @brief The current state of the IMAP client.
@@ -112,6 +135,8 @@ public:
 
 private:
     ProgramOptions options_;
+    FileHandler* fileHandler;
+    std::string username;
     int socket_;
     int commandCounter = 1;
 
@@ -119,57 +144,62 @@ private:
     SSL* ssl_; 
 
     /**
-     * @brief Establishes a connection to the IMAP server.
+     * @brief Creates TCP socket connection to IMAP server.
      *
-     * Creates a socket and connects to the server using the provided
-     * server address and port from the options. Uses DNS to resolve the server
-     * address and attempts to establish a connection.
+     * 1. Resolves server hostname using DNS
+     * 2. Creates TCP socket
+     * 3. Establishes connection to server
      *
-     * @return int Returns 0 on success, or 1 on failure.
+     * @return int 0 on success, non-zero on failure
+     * @throws ImapException If DNS resolution or socket operations fail
      */
-    int establishConnection();
+    virtual int establishConnection();
 
     /**
-     * @brief Performs a TLS handshake with the server.
+     * @brief Sets up SSL/TLS encryption for the connection.
      *
-     * Initializes the SSL context and performs a TLS handshake
-     * with the server. Loads the certificate file or directory
-     * if specified in the options.
+     * 1. Initializes SSL context and certificate verification
+     * 2. Creates SSL connection
+     * 3. Performs SSL handshake
      *
-     * @return int Returns 0 on success, or 1 on failure.
+     * @return int 0 on success, non-zero on failure
+     * @throws ImapException If SSL initialization or handshake fails
      */
-    int TLSHandshake();
+    virtual int TLSHandshake();
 
     /**
      * @brief Sends an IMAP command to the server.
      *
-     * Appends the CRLF sequence to the given command and sends
-     * it to the server using SSL or a regular socket.
+     * Handles both SSL and non-SSL connections.
+     * Automatically appends CRLF to commands.
      *
-     * @param command The IMAP command to be sent.
-     * @return int Returns 0 on success, or 1 if the command failed to send.
+     * @param command The IMAP command string to send
+     * @return int 0 on success, non-zero on failure
+     * @throws ImapException If send operation fails
      */
-    int sendCommand(const std::string &command);
+    virtual int sendCommand(const std::string &command);
 
     /**
-     * @brief Receives and processes the response from the IMAP server.
+     * @brief Receives complete IMAP server response.
      *
-     * Continuously receives data until a complete response is detected.
-     * Increments the command counter after processing.
+     * Collects response data until a complete tagged response is received.
+     * Handles both SSL and non-SSL connections.
      *
-     * @return A string containing the complete response from the server.
+     * @return std::string The complete server response
+     * @throws ImapException If response cannot be fully received
      */
-    std::string receiveResponse();
+    virtual std::string receiveResponse();
 
     /**
-     * @brief Receives data from the IMAP server.
+     * @brief Low-level data receive operation with timeout.
      *
-     * Reads data from the server into a buffer and returns it as a string.
-     * Supports both SSL and non-SSL connections.
+     * Implements timeout handling and supports both SSL and non-SSL connections.
+     * Uses select() for timeout management.
      *
-     * @return A string containing the data received from the server.
+     * @return std::string The received data
+     * @throws ImapException On timeout, disconnection, or read errors
      */
-    std::string recvData();
+    virtual std::string recvData();
 
     /**
      * @brief Generates a unique tag for IMAP commands.
@@ -197,28 +227,7 @@ private:
      * @param id The unique identifier of the email message to download.
      * @return A string containing the email message. Returns an empty string on failure.
      */
-    std::string downloadMessage(int id);
-
-    /**
-     * @brief Saves the given message content to a file with a specified ID.
-     *
-     * Saves the message content to a file in the output directory.
-     *
-     * @param message_content The content of the message to be saved.
-     * @param id The identifier used to generate the filename.
-     * @return int Returns 0 on success, or 1 on error.
-     */
-    int saveMessage(const std::string &message_content, int id);
-
-    /**
-     * @brief Prepares the output directory for use.
-     *
-     * Checks if the output directory exists. If it exists, removes all files within it.
-     * If it does not exist, attempts to create the directory.
-     *
-     * @return int Returns 0 on success, or 1 on failure.
-     */
-    int prepareOutputDir();
+    virtual std::string downloadMessage(int id);
 
     /**
      * @brief Outputs information to the user about fetched messages.

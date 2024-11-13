@@ -12,6 +12,10 @@
 struct AuthData {
     std::string username; ///< Username for authentication.
     std::string password; ///< Password for authentication.
+
+    bool operator==(const AuthData& other) const {
+        return username == other.username && password == other.password;
+    }
 };
 
 /**

@@ -16,16 +16,14 @@ public:
     /**
      * @brief Parses the login response from the IMAP server.
      * @param response The response string from the server.
-     * @return int Returns 0 if login is successful, otherwise returns 1.
      */
-    static int parseLoginResponse(const std::string &response);
+    static void parseLoginResponse(const std::string &response);
 
     /**
      * @brief Parses the select response from the IMAP server when selecting a mailbox.
      * @param response The response string from the server.
-     * @return int Returns 0 if the mailbox is successfully selected, otherwise returns 1.
      */
-    static int parseSelectResponse(const std::string &response);
+    static void parseSelectResponse(const std::string &response);
 
     /**
      * @brief Parses the search response from the IMAP server to retrieve message IDs.
@@ -37,7 +35,7 @@ public:
     /**
      * @brief Parses the fetch response from the IMAP server to retrieve an email's contents.
      * @param response The response string from the server.
-     * @return std::string The content of the email. Returns an empty string if fetching fails.
+     * @return std::string The content of the email.
      */
     static std::string parseFetchResponse(const std::string &response);
 

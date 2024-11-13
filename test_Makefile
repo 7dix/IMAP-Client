@@ -1,0 +1,39 @@
+# test_Makefile
+CXX = g++
+CXXFLAGS = -std=c++17 -Wall -Wextra -pthread -g
+LDFLAGS = -lssl -lcrypto -lgtest -lgtest_main -lgmock -L/usr/local/lib 
+CPPFLAGS = -I/usr/local/opt/openssl/include -I/usr/local/include
+
+SRC_DIR = src
+OBJ_DIR = obj
+BIN_DIR = bin
+TEST_DIR = tests
+
+# List of source and test files
+SRC_SOURCES = src/ArgumentsParser.cpp src/AuthReader.cpp src/ImapClient.cpp src/ImapParser.cpp src/FileHandler.cpp
+TEST_SOURCES = tests/main_test.cpp tests/ArgumentsParser_test.cpp tests/AuthReader_test.cpp tests/ImapClient_test.cpp tests/ImapParser_test.cpp
+SOURCES = $(SRC_SOURCES) $(TEST_SOURCES)
+OBJECTS = $(SOURCES:.cpp=.o)
+TEST_EXECUTABLE = $(BIN_DIR)/test_runner
+
+all: $(TEST_EXECUTABLE)
+
+$(TEST_EXECUTABLE): $(OBJECTS)
+	@mkdir -p $(BIN_DIR)
+	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)
+
+$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
+
+$(OBJ_DIR)/%.o: $(TEST_DIR)/%.cpp
+	@mkdir -p $(OBJ_DIR)
+	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
+
+run_tests: $(TEST_EXECUTABLE)
+	$(TEST_EXECUTABLE) --gtest_break_on_failure=0 --gtest_catch_exceptions=1
+
+clean:
+	rm -rf $(OBJ_DIR) $(BIN_DIR)
+
+.PHONY: all clean run_tests

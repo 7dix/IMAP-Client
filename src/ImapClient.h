@@ -221,7 +221,7 @@ private:
     /**
      * @brief Downloads an email message from the IMAP server.
      *
-     * Sends a FETCH command to retrieve the specified message.
+     * Sends a UID FETCH command to retrieve the specified message.
      * Can fetch headers only or the entire message based on options.
      *
      * @param id The unique identifier of the email message to download.

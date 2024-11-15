@@ -227,15 +227,21 @@ void ImapClient::selectMailbox() {
     std::string response = receiveResponse();
     ImapParser::parseSelectResponse(response);
 
+    int uidValidity = ImapParser::parseUIDValidity(response);
+    int uidCheck = fileHandler->checkMailboxUIDValidity(username, options_.mailbox, uidValidity);
+    if (uidCheck == -1){
+        throw FileHandler("Nepodařilo se zkontrolovat UIDVALIDITY");
+    }
+
     state = ImapClientState::SelectedMailbox;
 }
 
 void ImapClient::fetchMessages() {
     std::ostringstream command;
     if (options_.onlyNewMessages) {
-        command << generateTag() << " SEARCH NEW" << std::endl;
+        command << generateTag() << " UID SEARCH NEW";
     } else {
-        command << generateTag() << " SEARCH ALL" << std::endl;
+        command << generateTag() << " UID SEARCH ALL";
     }
 
     if (sendCommand(command.str()) != 0) {
@@ -280,16 +286,16 @@ void ImapClient::fetchMessages() {
     }
 
     state = ImapClientState::Logout;
-    userInfo(messageIds.size());
+    userInfo(messageIds.size() - downloadedMessages.size());
     return;
 }
 
 void ImapClient::userInfo(const int messageCount) {
     if (messageCount == 0){
         if (options_.onlyNewMessages){
-            std::cout << "Žádné nové zprávy." << std::endl;
+            std::cout << "Žádné nové zprávy nestaženy." << std::endl;
         } else {
-            std::cout << "Žádné zprávy." << std::endl;
+            std::cout << "Žádné zprávy nestaženy." << std::endl;
         }
     } else {
         std::string newText;
@@ -299,15 +305,15 @@ void ImapClient::userInfo(const int messageCount) {
         if (messageCount >= 5){
             messText = " zpráv ";
             newText = " nových";
-            dledText = "Uloženo ";
+            dledText = "Staženo ";
         } else if ( messageCount == 1){
             messText = " zpráva ";
             newText = " nová";
-            dledText = "Uložena ";
+            dledText = "Stažena ";
         } else {
             messText = " zprávy ";
             newText = " nové";
-            dledText = "Uloženy ";
+            dledText = "Staženy ";
         }
 
         if (!options_.onlyNewMessages){
@@ -453,9 +459,9 @@ std::string ImapClient::recvData() {
 std::string ImapClient::downloadMessage(int id) {
     std::ostringstream command;
     if (options_.headersOnly) {
-        command << generateTag() << " FETCH " << id << " BODY[HEADER]";
+        command << generateTag() << " UID FETCH " << id << " BODY[HEADER]";
     } else {
-        command << generateTag() << " FETCH " << id << " BODY[]";
+        command << generateTag() << " UID FETCH " << id << " BODY[]";
     }
 
     // Send the FETCH command
@@ -463,8 +469,17 @@ std::string ImapClient::downloadMessage(int id) {
         throw ImapException("Nepodařilo se odeslat příkaz FETCH");
     }
 
-    // Receive the response from the server
-    std::string response = receiveResponse();
+    std::string response;
+    try {
+        // Receive the response from the server
+        response = receiveResponse();
+    } catch (const ImapException& e) {
+        // If the message could not be downloaded, try sending command again
+        if (sendCommand(command.str()) != 0){
+            throw ImapException("Nepodařilo se odeslat příkaz FETCH");
+        }
+        response = receiveResponse();
+    }
     std::string message = ImapParser::parseFetchResponse(response);
 
     return message;

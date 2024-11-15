@@ -25,6 +25,13 @@ public:
      */
     static void parseSelectResponse(const std::string &response);
 
+    /** 
+     * @brief Parses the UIDVALIDITY response from the IMAP server.
+     * @param response The response string from the server.
+     * @return int The UIDVALIDITY value.
+     */
+    static int parseUIDValidity(const std::string &response);
+
     /**
      * @brief Parses the search response from the IMAP server to retrieve message IDs.
      * @param response The response string from the server.

@@ -42,6 +42,22 @@ public:
      */
     int isMessageAlreadyDownloaded(int id, std::string &account, std::string &mailbox);
 
+
+    /**
+     * @brief Checks if the mailbox's UIDVALIDITY value matches the given value or if it even exists yet.
+     * 
+     * Checks if the mailbox's UIDVALIDITY value matches the given value or if it even exists yet.
+     * Saves new UIDVALIDITY value to the mailbox uidvalidity.txt file.
+     * Deletes all messages in the mailbox if the UIDVALIDITY value does not match.
+     * 
+     * @param account The account name.
+     * @param mailbox The mailbox name.
+     * @param uidValidity The UIDVALIDITY value to check.
+     * @return int 
+     * Returns: 0 if the mailbox UIDVALIDITY does match, 1 if it does not match, 2 if the mailbox does not exist, and -1 on error.
+     */
+    int checkMailboxUIDValidity(std::string &account, std::string &mailbox, int uidValidity);
+
 private:
     std::string path; ///< Path to the folder containing email file structure.
 

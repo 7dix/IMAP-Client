@@ -72,3 +72,64 @@ void FileHandler::saveMessage(const std::string &message_content, int id, std::s
     file << message_content;
     file.close();
 }
+
+int FileHandler::checkMailboxUIDValidity(std::string &account, std::string &mailbox, int uidValidity) {
+    std::string dirPath = path + "/" + account + "/" + mailbox;
+    std::string uidValidityFile = dirPath + "/uidvalidity.txt";
+
+    // Check if UIDVALIDITY file exists
+    if (!std::filesystem::exists(uidValidityFile)) {
+        // Create directory structure if it doesn't exist
+        if (!std::filesystem::exists(dirPath)) {
+            createDirectories(dirPath);
+        } else {
+            // UIDVALIDITY was missing but files were here.
+            // Delete all .eml files from the directory
+            for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+                if (entry.path().extension() == ".eml") {
+                    std::filesystem::remove(entry.path());
+                }
+            }
+        }
+
+        // Write the new UIDVALIDITY value to the file
+        std::ofstream file(uidValidityFile);
+        if (!file.is_open()) {
+            return -1; // Error creating file
+        }
+        file << uidValidity;
+        file.close();
+        return 2; // Mailbox did not exist, new UIDVALIDITY file created
+    }
+
+    // Read UIDVALIDITY value from file
+    std::ifstream file(uidValidityFile);
+    if (!file.is_open()) {
+        return -1; // Error reading file
+    }
+
+    int storedUIDValidity;
+    file >> storedUIDValidity;
+    file.close();
+
+    if (storedUIDValidity != uidValidity) {
+        // Update the UIDVALIDITY value in the file
+        std::ofstream outFile(uidValidityFile);
+        if (!outFile.is_open()) {
+            return -1; // Error updating file
+        }
+        outFile << uidValidity;
+        outFile.close();
+
+        // Delete all .eml files from the directory
+        for (const auto& entry : std::filesystem::directory_iterator(dirPath)) {
+            if (entry.path().extension() == ".eml") {
+                std::filesystem::remove(entry.path());
+            }
+        }
+
+        return 1; // UIDVALIDITY updated
+    }
+
+    return 0; // UIDVALIDITY matches
+}

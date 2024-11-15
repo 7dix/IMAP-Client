@@ -40,6 +40,23 @@ void ImapParser::parseSelectResponse(const std::string &response) {
     throw ImapException("Nepodařilo se vybrat složku.");
 }
 
+int ImapParser::parseUIDValidity(const std::string &response) {
+    std::istringstream responseStream(response);
+    std::string line;
+    std::smatch match;
+    std::regex uidValidityRegex(R"(OK \[UIDVALIDITY (\d+)\])");
+
+    while (std::getline(responseStream, line)) {
+        if (std::regex_search(line, match, uidValidityRegex)) {
+            return std::stoi(match[1].str());
+        }
+    }
+    
+    throw ImapException("Nepodařilo se získat UIDVALIDITY.");
+}
+
+
+
 std::vector<int> ImapParser::parseSearchResponse(const std::string &response) {
     std::vector<int> messageIds;
     std::istringstream responseStream(response);

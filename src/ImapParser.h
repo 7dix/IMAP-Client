@@ -14,6 +14,13 @@
 class ImapParser {
 public:
     /**
+     * @brief Parses the greeting response from the IMAP server.
+     * @param response The response string from the server.
+     * @return int Returns 1 if the greeting is OK, 0 if it is PREAUTH, and throws an exception otherwise.
+     */
+    static int parseGreetingResponse(const std::string &response);
+
+    /**
      * @brief Parses the login response from the IMAP server.
      * @param response The response string from the server.
      */

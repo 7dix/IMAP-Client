@@ -188,16 +188,13 @@ void ImapClient::disconnect() {
 
 void ImapClient::receiveGreeting() {
     std::string recved = recvData();
-    if (std::regex_search(recved, GREETING_OK)) {
+    int greetingRes = ImapParser::parseGreetingResponse(recved);
+    if (greetingRes == 1){
         state = ImapClientState::NotAuthenticated;
-        return;
-    } else if (std::regex_search(recved, GREETING_PREAUTH)) {
+    } else if (greetingRes == 0){
         state = ImapClientState::Authenticated;
-        return;
-    } else if (std::regex_search(recved, GREETING_BYE)) {
-        throw ImapException("Server refused connection.");
     } else {
-        throw ImapException("Failed to receive response from server.");
+        throw ImapException("Failed to receive greeting from server");
     }
 }
 
@@ -355,7 +352,7 @@ std::string ImapClient::receiveResponse() {
     std::string currentTag = generateTag();
     std::string response;
     bool received = false;
-    int maxTries = 5000;
+    int maxTries = 10000;
 
     while (!received && maxTries > 0) {
         std::string recved = recvData();
@@ -379,7 +376,7 @@ std::string ImapClient::receiveResponse() {
 std::string ImapClient::recvData() {
     char buffer[4096];
     int bytes_received = 0;
-    const int timeout_seconds = 10;
+    const int timeout_seconds = 60;
 
     while (true) {
         fd_set read_fds;
@@ -475,6 +472,7 @@ std::string ImapClient::downloadMessage(int id) {
         response = receiveResponse();
     } catch (const ImapException& e) {
         // If the message could not be downloaded, try sending command again
+        std::cout << "Failed to download message from server. Retrying one more time..." << std::endl;
         if (sendCommand(command.str()) != 0){
             throw ImapException("Failed to send FETCH command");
         }

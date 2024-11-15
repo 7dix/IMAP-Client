@@ -4,6 +4,19 @@
 #include "ImapException.h"
 #include <sstream>
 
+
+int ImapParser::parseGreetingResponse(const std::string &response) {
+    if (std::regex_search(response, GREETING_OK)) {
+        return 1;
+    } else if (std::regex_search(response, GREETING_PREAUTH)) {
+        return 0;
+    } else if (std::regex_search(response, GREETING_BYE)) {
+        throw ImapException("Server refused connection.");
+    } else {
+        throw ImapException("Failed to receive response from server.");
+    }
+}
+
 void ImapParser::parseLoginResponse(const std::string &response) {
     std::istringstream responseStream(response);
     std::string line;

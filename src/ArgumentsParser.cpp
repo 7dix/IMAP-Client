@@ -10,7 +10,7 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
 
     if (argc < 2) {
         printUsage();
-        throw std::invalid_argument("Nebyly zadány žádné argumenty.");
+        throw std::invalid_argument("No arguments were provided.");
     }
 
     options.server = argv[1];
@@ -26,7 +26,7 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
             case 'p':
                 if (std::atoi(optarg) < 0 || std::atoi(optarg) > 65536) {
                     printUsage();
-                    throw std::invalid_argument("Číslo portu je mimo rozsah (1-65535)");
+                    throw std::invalid_argument("Port number is out of range (1-65535).");
                 }
                 options.port = std::atoi(optarg);
                 break;
@@ -36,14 +36,14 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
             case 'c':
                 if (!optarg || !options.useTLS) {
                     printUsage();
-                    throw std::invalid_argument("Chybí argument -T pro použití TLS.");
+                    throw std::invalid_argument("Missing argument -T to use TLS.");
                 }
                 options.certFile = optarg;
                 break;
             case 'C':
                 if (!options.useTLS) {
                     printUsage();
-                    throw std::invalid_argument("Chybí argument -T pro použití TLS.");
+                    throw std::invalid_argument("Missing argument -T to use TLS.");
                 }
                 if (optarg) {
                     options.certDir = optarg;
@@ -66,18 +66,23 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
                 break;
             default:
                 printUsage();
-                throw std::invalid_argument("Neznámý argument.");
+                throw std::invalid_argument("Unknown argument.");
         }
+    }
+
+    if (optind < argc) {
+        printUsage();
+        throw std::invalid_argument("Unknown argument.");
     }
 
     // Check for required options after option parsing
     if (options.authFile.empty()) {
         printUsage();
-        throw std::invalid_argument("Chybí povinný argument -a.");
+        throw std::invalid_argument("Missing required argument -a.");
     }
     if (options.outputDir.empty()) {
         printUsage();
-        throw std::invalid_argument("Chybí povinný argument -o.");
+        throw std::invalid_argument("Missing required argument -o.");
     }
 
 
@@ -90,18 +95,18 @@ ProgramOptions ArgumentsParser::parse(int argc, char* argv[]) {
 }
 
 void ArgumentsParser::printUsage() {
-    std::cout << std::endl << "Použití: imapcl <adresa_serveru> [options]" << std::endl;
-    std::cout << "Povinné argumenty:" << std::endl;
-    std::cout << "  <adresa_serveru>         Adresa IMAP serveru" << std::endl;
-    std::cout << "  -a <auth_soubor>         Cesta k autentizačnímu souboru" << std::endl;
-    std::cout << "  -o <výstupní_adresář>    Cesta k adresáři pro ukládání emailů" << std::endl;
+    std::cout << std::endl << "Usage: imapcl <server_address> [options]" << std::endl;
+    std::cout << "Required arguments:" << std::endl;
+    std::cout << "  <server_address>         Address of the IMAP server" << std::endl;
+    std::cout << "  -a <auth_file>           Path to the authentication file" << std::endl;
+    std::cout << "  -o <output_directory>    Path to the directory for saving emails" << std::endl;
     std::cout << std::endl;
-    std::cout << "Volitelné argumenty:" << std::endl;
-    std::cout << "  -p <port>                Specifikujte číslo portu" << std::endl;
-    std::cout << "  -T                       Použít protokol TLS" << std::endl;
-    std::cout << "    -c <cert_soubor>       Cesta k souboru s certifikátem" << std::endl;
-    std::cout << "    -C <cert_adresář>      Cesta k adresáři s certifikáty (defaultně /etc/ssl/certs)" << std::endl;
-    std::cout << "  -n                       Stáhnout pouze nové zprávy" << std::endl;
-    std::cout << "  -h                       Stáhnout pouze hlavičky zpráv" << std::endl;
-    std::cout << "  -b <schránka>            Název schránky (výchozí je INBOX)" << std::endl;
+    std::cout << "Optional arguments:" << std::endl;
+    std::cout << "  -p <port>                Specify the port number" << std::endl;
+    std::cout << "  -T                       Use TLS protocol" << std::endl;
+    std::cout << "    -c <cert_file>         Path to the certificate file" << std::endl;
+    std::cout << "    -C <cert_directory>    Path to the certificate directory (default is /etc/ssl/certs)" << std::endl;
+    std::cout << "  -n                       Download only new messages" << std::endl;
+    std::cout << "  -h                       Download only message headers" << std::endl;
+    std::cout << "  -b <mailbox>             Name of the mailbox (default is INBOX)" << std::endl;
 }

@@ -13,13 +13,13 @@ void ImapParser::parseLoginResponse(const std::string &response) {
         if (std::regex_search(line, match, LOGIN_OK)) {
             return;
         } else if (std::regex_search(line, match, LOGIN_NO)) {
-            throw ImapException("Přihlášení se nezdařilo: " + match[1].str());
+            throw ImapException("Login failed: " + match[1].str());
         } else if (std::regex_search(line, match, LOGIN_BAD)) {
-            throw ImapException("Přihlášení se nezdařilo: " + match[1].str());
+            throw ImapException("Login failed: " + match[1].str());
         }
     }
 
-    throw ImapException("Nepodařilo se přihlásit.");
+    throw ImapException("Login failed.");
 }
 
 void ImapParser::parseSelectResponse(const std::string &response) {
@@ -31,13 +31,13 @@ void ImapParser::parseSelectResponse(const std::string &response) {
         if (std::regex_search(line, match, SELECT_OK)) {
             return;
         } else if (std::regex_search(line, match, SELECT_NO)) {
-            throw ImapException("Nepodařilo se vybrat složku: " + match[1].str());
+            throw ImapException("Failed to select mailbox: " + match[1].str());
         } else if (std::regex_search(line, match, SELECT_BAD)) {
-            throw ImapException("Nepodařilo se vybrat složku: " + match[1].str());
+            throw ImapException("Failed to select mailbox: " + match[1].str());
         }
     }
 
-    throw ImapException("Nepodařilo se vybrat složku.");
+    throw ImapException("Failed to select mailbox.");
 }
 
 int ImapParser::parseUIDValidity(const std::string &response) {
@@ -52,7 +52,7 @@ int ImapParser::parseUIDValidity(const std::string &response) {
         }
     }
     
-    throw ImapException("Nepodařilo se získat UIDVALIDITY.");
+    throw ImapException("Failed to obtain UIDVALIDITY.");
 }
 
 
@@ -96,7 +96,7 @@ std::string ImapParser::parseFetchResponse(const std::string &response) {
 
                 // Ensure we have enough data
                 if (response.size() < message_start + message_size) {
-                    throw ImapException("Nepodařilo se stáhnout email: chybí data.");
+                    throw ImapException("Failed to download email: data missing.");
                 }
 
                 // Extract the message content
@@ -104,18 +104,18 @@ std::string ImapParser::parseFetchResponse(const std::string &response) {
                 return message_content;
             }
             else{
-                throw ImapException("Nepodařilo se stáhnout email: neznámá odpověď serveru.");
+                throw ImapException("Failed to download email: unknown server response.");
             }
         } 
         else if (std::regex_search(line, match, FETCH_NO)) {
-            throw ImapException("Nepodařilo se stáhnout email: " + match[1].str());
+            throw ImapException("Failed to download email: " + match[1].str());
         } 
         else if (std::regex_search(line, match, FETCH_BAD)) {
-            throw ImapException("Nepodařilo se stáhnout email: " + match[1].str());
+            throw ImapException("Failed to download email: " + match[1].str());
         }
     }
 
-    throw ImapException("Nepodařilo se přečíst odpověď serveru.");
+    throw ImapException("Failed to parse server response.");
 }
 
 bool ImapParser::checkResponseReceived(const std::string &response, const std::string &tag) {

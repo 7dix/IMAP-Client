@@ -14,7 +14,7 @@ void FileHandler::createDirectories(const std::string& fullPath) {
     std::error_code ec;
     if (!std::filesystem::create_directories(fullPath, ec)) {
         if (ec) {
-            throw FileException("Nepodařilo se vytvořit složky pro cestu: " + fullPath + " - " + ec.message());
+            throw FileException("Failed to create directories for path: " + fullPath + " - " + ec.message());
         }
     }
 }
@@ -67,7 +67,7 @@ void FileHandler::saveMessage(const std::string &message_content, int id, std::s
     
     std::ofstream file(filename);
     if (!file.is_open()) {
-        throw FileException("Nepodařilo se otevřít soubor zprávy: " + filename);
+        throw FileException("Failed to open message file: " + filename);
     }
     file << message_content;
     file.close();

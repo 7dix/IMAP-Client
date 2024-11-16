@@ -1,0 +1,12 @@
+{
+    libssl-leaks
+    Memcheck:Leak
+    ...
+    obj:*/libssl.so*
+}
+{
+    libcrypto-leaks
+    Memcheck:Leak
+    ...
+    obj:*/libcrypto.so*
+}

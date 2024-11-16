@@ -4,6 +4,7 @@
 #include "ImapException.h"
 #include "FileHandler.h"
 #include "FileException.h"
+#include "ImapResponseRegex.h"
 #include <stdlib.h>
 #include <iostream>
 #include <sstream>
@@ -116,30 +117,49 @@ void ImapClient::connectImap() {
 }
 
 int ImapClient::establishConnection() {
-    // Find IP using DNS servers
     struct addrinfo hints, *res;
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    int status = getaddrinfo(options_.server.c_str(), std::to_string(options_.port).c_str(), &hints, &res);
-    if (status != 0) {
-        throw ImapException("Failed to get server IP address");
-    }
+    bool is_ip = std::regex_match(options_.server, IP);
 
-    socket_ = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-    if (socket_ < 0) {
-        throw ImapException("Failed to open socket for connection");
-    }
+    if (is_ip) {
+        struct sockaddr_in sa;
+        if (inet_pton(AF_INET, options_.server.c_str(), &(sa.sin_addr)) <= 0) {
+            throw ImapException("Invalid IP address");
+        }
+        sa.sin_family = AF_INET;
+        sa.sin_port = htons(options_.port);
 
-    // Connect to the server
-    if (connect(socket_, res->ai_addr, res->ai_addrlen) == -1) {
-        close(socket_); // Close the socket on failure
+        socket_ = socket(AF_INET, SOCK_STREAM, 0);
+        if (socket_ < 0) {
+            throw ImapException("Failed to open socket for connection");
+        }
+
+        if (connect(socket_, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
+            close(socket_);
+            throw ImapException("Failed to connect to server");
+        }
+    } else {
+        int status = getaddrinfo(options_.server.c_str(), std::to_string(options_.port).c_str(), &hints, &res);
+        if (status != 0) {
+            throw ImapException("Failed to get server IP address");
+        }
+
+        socket_ = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
+        if (socket_ < 0) {
+            throw ImapException("Failed to open socket for connection");
+        }
+
+        if (connect(socket_, res->ai_addr, res->ai_addrlen) == -1) {
+            close(socket_);
+            freeaddrinfo(res);
+            throw ImapException("Failed to connect to server");
+        }
+
         freeaddrinfo(res);
-        throw ImapException("Failed to connect to server");
     }
-
-    freeaddrinfo(res);
 
     return 0;
 }

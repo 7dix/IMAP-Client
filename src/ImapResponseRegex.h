@@ -4,6 +4,9 @@
 #include <regex>
 #include <string>
 
+// IP ADDRESS REGEX
+const std::regex IP("^(\\d{1,3}\\.){3}\\d{1,3}$");
+
 // GREETING
 const std::regex GREETING_OK(R"(^\*\s+OK)");
 const std::regex GREETING_PREAUTH(R"(^\*\s+PREAUTH)");

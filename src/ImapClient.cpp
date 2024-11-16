@@ -50,6 +50,8 @@ ImapClient::~ImapClient() {
         SSL_CTX_free(ssl_ctx_);
         ssl_ctx_ = nullptr;
     }
+
+    delete fileHandler;
     EVP_cleanup();
 }
 

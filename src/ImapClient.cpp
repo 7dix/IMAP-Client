@@ -352,7 +352,7 @@ std::string ImapClient::receiveResponse() {
     std::string currentTag = generateTag();
     std::string response;
     bool received = false;
-    int maxTries = 10000;
+    int maxTries = 1000;
 
     while (!received && maxTries > 0) {
         std::string recved = recvData();
@@ -376,7 +376,7 @@ std::string ImapClient::receiveResponse() {
 std::string ImapClient::recvData() {
     char buffer[4096];
     int bytes_received = 0;
-    const int timeout_seconds = 60;
+    const int timeout_seconds = 30;
 
     while (true) {
         fd_set read_fds;
@@ -472,7 +472,7 @@ std::string ImapClient::downloadMessage(int id) {
         response = receiveResponse();
     } catch (const ImapException& e) {
         // If the message could not be downloaded, try sending command again
-        std::cout << "Failed to download message from server. Retrying one more time..." << std::endl;
+        std::cerr << "Failed to download message from server. Retrying one more time..." << std::endl;
         if (sendCommand(command.str()) != 0){
             throw ImapException("Failed to send FETCH command");
         }

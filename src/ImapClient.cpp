@@ -284,9 +284,6 @@ void ImapClient::fetchMessages() {
 
     if (messageIds.size() != 0){
         int messageCount = messageIds.size() - downloadedMessages.size();
-        if (downloadedMessages.size() != 0) {
-            std::cout << "Already saved messages: " << downloadedMessages.size() << std::endl;
-        }
 
         for (int id : messageIds) {
             if (std::find(downloadedMessages.begin(), downloadedMessages.end(), id) != downloadedMessages.end()){
@@ -300,7 +297,6 @@ void ImapClient::fetchMessages() {
             fileHandler->saveMessage(message, id, username, options_.mailbox);
             
             count++;
-            std::cout << "Downloaded " << count << "/" << messageCount << " messages." << std::endl;
         }
     }
 
@@ -433,7 +429,10 @@ std::string ImapClient::recvData() {
 
                 if (bytes_received > 0) {
                     buffer[bytes_received] = '\0';
+
+                    // Return the received data
                     return std::string(buffer);
+
                 } else if (bytes_received == 0) {
                     // Connection closed by the server
                     throw ImapException("Server closed connection");

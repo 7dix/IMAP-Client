@@ -10,29 +10,31 @@ BIN_DIR = bin
 TEST_DIR = tests
 
 # List of source and test files
-SRC_SOURCES = src/ArgumentsParser.cpp src/AuthReader.cpp src/ImapClient.cpp src/ImapParser.cpp src/FileHandler.cpp
-TEST_SOURCES = tests/main_test.cpp tests/ArgumentsParser_test.cpp tests/AuthReader_test.cpp tests/ImapClient_test.cpp tests/ImapParser_test.cpp
+SRC_SOURCES = $(SRC_DIR)/ArgumentsParser.cpp $(SRC_DIR)/AuthReader.cpp $(SRC_DIR)/ImapClient.cpp $(SRC_DIR)/ImapParser.cpp $(SRC_DIR)/FileHandler.cpp
+TEST_SOURCES = $(TEST_DIR)/main_test.cpp $(TEST_DIR)/ArgumentsParser_test.cpp $(TEST_DIR)/AuthReader_test.cpp $(TEST_DIR)/ImapClient_test.cpp $(TEST_DIR)/ImapParser_test.cpp
 SOURCES = $(SRC_SOURCES) $(TEST_SOURCES)
-OBJECTS = $(SOURCES:.cpp=.o)
+
+# Adjust OBJECTS variable to place .o files in the obj directory
+OBJECTS = $(SOURCES:%.cpp=$(OBJ_DIR)/%.o)
 TEST_EXECUTABLE = $(BIN_DIR)/test_runner
 
 all: $(TEST_EXECUTABLE)
 
+# Rule to link all .o files into the final test executable
 $(TEST_EXECUTABLE): $(OBJECTS)
 	@mkdir -p $(BIN_DIR)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)
 
-$(OBJ_DIR)/%.o: $(SRC_DIR)/%.cpp
-	@mkdir -p $(OBJ_DIR)
+# Rule to compile source files into .o files in the obj directory
+$(OBJ_DIR)/%.o: %.cpp
+	@mkdir -p $(OBJ_DIR)/$(SRC_DIR) $(OBJ_DIR)/$(TEST_DIR)
 	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
 
-$(OBJ_DIR)/%.o: $(TEST_DIR)/%.cpp
-	@mkdir -p $(OBJ_DIR)
-	$(CXX) $(CXXFLAGS) $(CPPFLAGS) -c $< -o $@
-
+# Command to run tests
 run_tests: $(TEST_EXECUTABLE)
 	$(TEST_EXECUTABLE) --gtest_break_on_failure=0 --gtest_catch_exceptions=1
 
+# Clean up all compiled files and directories
 clean:
 	rm -rf $(OBJ_DIR) $(BIN_DIR)
 

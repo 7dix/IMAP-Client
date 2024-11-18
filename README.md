@@ -18,6 +18,7 @@
 - **Omezení:**
   - Nepodporuje odesílání e-mailů.
   - Podporuje pouze základní autentizaci.
+  - Nepodporuje interaktivní režim, pouze spuštění z argumenty.
 
 ## Příklad spuštění
 

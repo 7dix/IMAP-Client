@@ -31,6 +31,7 @@ $(DEBUG_EXECUTABLE): $(OBJECTS)
 	$(CXX) $(CXXFLAGS) $(OBJECTS) -o $@ $(LDFLAGS)
 
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	rm -rf $(OBJ_DIR)
+	rm -f $(EXECUTABLE) $(DEBUG_EXECUTABLE)
 
 .PHONY: all clean debug

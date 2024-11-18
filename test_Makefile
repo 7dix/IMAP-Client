@@ -36,6 +36,8 @@ run_tests: $(TEST_EXECUTABLE)
 
 # Clean up all compiled files and directories
 clean:
-	rm -rf $(OBJ_DIR) $(BIN_DIR)
+	rm -rf $(OBJ_DIR)
+	rm -f $(TEST_EXECUTABLE)
+
 
 .PHONY: all clean run_tests

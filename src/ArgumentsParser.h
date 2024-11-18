@@ -1,7 +1,6 @@
-/**
- * @file ArgumentsParser.h
- * @brief Header file for the ArgumentsParser class and ProgramOptions struct.
- */
+// ArgumentsParser.h
+// author: Marek Tenora
+// login: xtenor02
 
 #ifndef ARGUMENTSPARSER_H
 #define ARGUMENTSPARSER_H

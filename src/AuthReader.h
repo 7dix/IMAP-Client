@@ -1,4 +1,7 @@
-// ArgumentsParser.h
+// AuthReader.h
+// author: Marek Tenora
+// login: xtenor02
+
 #ifndef AUTHREADER_H
 #define AUTHREADER_H
 

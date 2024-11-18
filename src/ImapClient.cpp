@@ -1,4 +1,6 @@
 // ImapClient.cpp
+// author: Marek Tenora
+// login: xtenor02
 
 #include "ImapClient.h"
 #include "ImapException.h"

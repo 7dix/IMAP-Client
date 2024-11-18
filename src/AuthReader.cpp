@@ -1,4 +1,7 @@
 // AuthReader.cpp
+// author: Marek Tenora
+// login: xtenor02
+
 #include "AuthReader.h"
 #include <iostream>
 #include <fstream>

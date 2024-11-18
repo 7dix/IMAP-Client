@@ -1,4 +1,7 @@
 // main.cpp
+// author: Marek Tenora
+// login: xtenor02
+
 #include <iostream>
 #include <stdlib.h>
 

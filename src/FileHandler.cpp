@@ -1,4 +1,6 @@
 // FileHandler.cpp
+// author: Marek Tenora
+// login: xtenor02
 
 #include "FileHandler.h"
 #include "FileException.h"

@@ -1,3 +1,7 @@
+// ImapResponseRegex.h
+// author: Marek Tenora
+// login: xtenor02
+
 #ifndef REGEX_PATTERNS_H
 #define REGEX_PATTERNS_H
 

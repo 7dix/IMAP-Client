@@ -1,4 +1,6 @@
 // ImapParser.cpp
+// author: Marek Tenora
+// login: xtenor02
 
 #include "ImapParser.h"
 #include "ImapException.h"

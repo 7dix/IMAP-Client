@@ -1,4 +1,7 @@
 // ArgumentsParser.cpp
+// author: Marek Tenora
+// login: xtenor02
+
 #include "ArgumentsParser.h"
 #include <iostream>
 #include <unistd.h>

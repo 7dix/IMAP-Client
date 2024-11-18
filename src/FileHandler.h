@@ -1,4 +1,6 @@
 // FileHandler.h
+// author: Marek Tenora
+// login: xtenor02
 
 #ifndef FILEHANDLER_H
 #define FILEHANDLER_H

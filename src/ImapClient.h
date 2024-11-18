@@ -1,4 +1,6 @@
 // ImapClient.h
+// author: Marek Tenora
+// login: xtenor02
 
 #ifndef IMAPCLIENT_H
 #define IMAPCLIENT_H

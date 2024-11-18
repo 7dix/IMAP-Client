@@ -1,4 +1,7 @@
 // ImapParser.h
+// author: Marek Tenora
+// login: xtenor02
+
 #ifndef IMAPPARSER_H
 #define IMAPPARSER_H
 

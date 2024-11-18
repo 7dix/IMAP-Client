@@ -1,3 +1,7 @@
+// FileException.h
+// author: Marek Tenora
+// login: xtenor02
+
 #pragma once
 #include <string>
 #include <stdexcept>

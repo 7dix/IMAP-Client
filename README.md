@@ -56,6 +56,7 @@ Následující parametry se používají pouze s volbou -T:
     FileHandler.h
     ImapException.h
     FileException.h
+    ImapResponseRegex.h
 /tests
     ArgumentsParser_test.cpp
     AuthReader_test.cpp

@@ -13,14 +13,14 @@
 #include <stdexcept>
 #include <sys/socket.h>
 #include <sys/select.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <netdb.h>
 #include <cstring> 
 #include <unistd.h>
 #include <fstream>
-#include <sys/stat.h>
-#include <sys/types.h>
 #include <regex>
 #include <dirent.h>
 #include <sys/select.h>
@@ -121,48 +121,38 @@ void ImapClient::connectImap() {
 }
 
 int ImapClient::establishConnection() {
-    struct addrinfo hints, *res;
+    struct addrinfo hints{}, *res = nullptr, *p = nullptr;
+
     memset(&hints, 0, sizeof(hints));
     hints.ai_family = AF_UNSPEC;
     hints.ai_socktype = SOCK_STREAM;
 
-    bool is_ip = std::regex_match(options_.server, IP);
+    // Resolve server address
+    int status = getaddrinfo(options_.server.c_str(), std::to_string(options_.port).c_str(), &hints, &res);
+    if (status != 0) {
+        throw ImapException("Failed to resolve server address: " + std::string(gai_strerror(status)));
+    }
 
-    if (is_ip) {
-        struct sockaddr_in sa;
-        if (inet_pton(AF_INET, options_.server.c_str(), &(sa.sin_addr)) <= 0) {
-            throw ImapException("Invalid IP address");
-        }
-        sa.sin_family = AF_INET;
-        sa.sin_port = htons(options_.port);
+    // Attempt to connect using each address info result
+    for (p = res; p != nullptr; p = p->ai_next) {
 
-        socket_ = socket(AF_INET, SOCK_STREAM, 0);
+        socket_ = socket(p->ai_family, p->ai_socktype, p->ai_protocol);
         if (socket_ < 0) {
-            throw ImapException("Failed to open socket for connection");
+            continue;
         }
 
-        if (connect(socket_, (struct sockaddr*)&sa, sizeof(sa)) == -1) {
-            close(socket_);
-            throw ImapException("Failed to connect to server");
-        }
-    } else {
-        int status = getaddrinfo(options_.server.c_str(), std::to_string(options_.port).c_str(), &hints, &res);
-        if (status != 0) {
-            throw ImapException("Failed to get server IP address");
+        if (::connect(socket_, p->ai_addr, p->ai_addrlen) == 0) {
+            break;
         }
 
-        socket_ = socket(res->ai_family, res->ai_socktype, res->ai_protocol);
-        if (socket_ < 0) {
-            throw ImapException("Failed to open socket for connection");
-        }
+        close(socket_);
+        socket_ = -1;
+    }
 
-        if (connect(socket_, res->ai_addr, res->ai_addrlen) == -1) {
-            close(socket_);
-            freeaddrinfo(res);
-            throw ImapException("Failed to connect to server");
-        }
+    freeaddrinfo(res);
 
-        freeaddrinfo(res);
+    if (socket_ < 0) {
+        throw ImapException("Failed to connect to server on any resolved address");
     }
 
     return 0;

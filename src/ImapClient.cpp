@@ -283,7 +283,6 @@ void ImapClient::fetchMessages() {
     }
 
     if (messageIds.size() != 0){
-        int messageCount = messageIds.size() - downloadedMessages.size();
 
         for (int id : messageIds) {
             if (std::find(downloadedMessages.begin(), downloadedMessages.end(), id) != downloadedMessages.end()){

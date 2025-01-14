@@ -1,13 +1,7 @@
 # IMAP klient
 
-## Autor
-
-- **Jméno:** Marek Tenora
-- **Login:** xtenor02
-- **Datum vytvoření:** 18.11.2024
-
 ## Popis programu
- Jednoduchý IMAP klient napsaný v C++, který umožňuje připojení k IMAP serveru, autentizaci uživatele a stahování e-mailových zpráv z vybrané poštovní schránky. Program podporuje zabezpečené připojení pomocí TLS a umožňuje stahovat pouze nové zprávy nebo pouze hlavičky zpráv.
+ Low-level IMAP klient, který umožňuje připojení k IMAP serveru, autentizaci uživatele a stahování e-mailových zpráv z vybrané poštovní schránky. Program podporuje zabezpečené připojení pomocí TLS a umožňuje stahovat pouze nové zprávy nebo pouze hlavičky zpráv. Vhodné pro implementaci jako služba AI Agenta pro kontrolovaní mailu.
 
 ### Rozšíření a omezení
 

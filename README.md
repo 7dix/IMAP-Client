@@ -3,21 +3,53 @@
 ## Popis programu
  Low-level IMAP klient, který umožňuje připojení k IMAP serveru, autentizaci uživatele a stahování e-mailových zpráv z vybrané poštovní schránky. Program podporuje zabezpečené připojení pomocí TLS a umožňuje stahovat pouze nové zprávy nebo pouze hlavičky zpráv. Vhodné pro implementaci jako služba AI Agenta pro kontrolovaní mailu.
 
+Program je dostupný ve dvou variantách:
+- **CLI verze** (`imapcl`) - příkazová řádka s argumenty
+- **GUI verze** (`imapcl-gui`) - grafické uživatelské rozhraní
+
 ### Rozšíření a omezení
 
 - **Rozšíření:**
   - Adresářová struktura uložených emailů.
   - Zotavení z chyby serveru kdy nepošle vyžádanou zprávu.
+  - **NOVÉ:** Grafické uživatelské rozhraní (GUI) pro snadné použití.
 
 - **Omezení:**
   - Nepodporuje odesílání e-mailů.
   - Podporuje pouze základní autentizaci.
-  - Nepodporuje interaktivní režim, pouze spuštění z argumenty.
+  - Nepodporuje interaktivní režim v CLI verzi.
 
 ## Příklad spuštění
 
+### CLI verze
 ```bash
-./imapcl -s imap.example.com -p 993 -T -a auth.txt -b INBOX -o ./mails
+./imapcl imap.example.com -p 993 -T -a auth.txt -b INBOX -o ./mails
+```
+
+### GUI verze
+```bash
+./imapcl-gui
+```
+GUI verze poskytuje intuitivní rozhraní pro zadání všech potřebných parametrů:
+- Nastavení serveru (adresa, port, TLS)
+- Autentizace (uživatelské jméno, heslo)
+- Možnosti (mailbox, pouze nové zprávy, pouze hlavičky)
+- Výstupní adresář
+- Zobrazení průběhu a výsledků operací
+
+## Sestavení
+
+### Závislosti
+- C++17 kompatibilní kompilátor
+- OpenSSL (`libssl-dev`, `libcrypto-dev`)
+- **Pro GUI:** GTK+3 (`libgtkmm-3.0-dev`, `pkg-config`)
+
+### Sestavení obou verzí
+```bash
+make all          # Sestaví CLI i GUI verzi
+make cli          # Sestaví pouze CLI verzi
+make gui          # Sestaví pouze GUI verzi
+make clean        # Vyčistí sestavené soubory
 ```
 ## Argumenty
 ### Povinné argumenty

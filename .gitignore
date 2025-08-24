@@ -46,4 +46,11 @@ auth
 .vscode/
 
 imapcl
+imapcl-gui
 imapcl_debug
+imapcl-gui_debug
+
+# Screenshots
+*.png
+*.jpg
+*.jpeg
